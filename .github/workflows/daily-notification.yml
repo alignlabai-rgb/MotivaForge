@@ -1,0 +1,21 @@
+name: Daily MotivaForge Notification
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 07:30 JST every day.
+    - cron: "30 22 * * *"
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Send daily notification
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FCM_TOKENS: ${{ secrets.FCM_TOKENS }}
+        run: node scripts/send-daily-notification.mjs
