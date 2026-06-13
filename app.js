@@ -11,6 +11,17 @@ const state = {
 const DEFAULT_CURRENT_WEIGHT = 103.4;
 const DEFAULT_PLAN_START_DATE = "2026-06-13";
 const KCAL_PER_KG = 7700;
+const FIREBASE_VAPID_KEY = "BIz0AsnSDc92QsHmpWQ4pYQUq-Rl5onSFmR83SJGNgVfDUTXlKkUFwEnnzMMBXIl-6sTppx0_BtAnCS6y1zBfAg";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBycYbj3tlRE5Z9HmeecNUTdMjc9BSYh5Y",
+  authDomain: "motiveforge-77b00.firebaseapp.com",
+  projectId: "motiveforge-77b00",
+  storageBucket: "motiveforge-77b00.firebasestorage.app",
+  messagingSenderId: "25502053073",
+  appId: "1:25502053073:web:9bade518d88dac30bfcbf0",
+  measurementId: "G-JNZL5P14TS",
+};
 
 const TARGET_WEIGHTS_BY_RACE_ID = {
   race_2026_11: 98,
@@ -55,6 +66,9 @@ const elements = {
   observeTodayTarget: document.querySelector("#observeTodayTarget"),
   observeDailyDeficit: document.querySelector("#observeDailyDeficit"),
   observationTable: document.querySelector("#observationTable"),
+  notificationStatus: document.querySelector("#notificationStatus"),
+  enableNotificationsButton: document.querySelector("#enableNotificationsButton"),
+  fcmTokenText: document.querySelector("#fcmTokenText"),
   thinkerCount: document.querySelector("#thinkerCount"),
   thinkerNumber: document.querySelector("#thinkerNumber"),
   thinkerName: document.querySelector("#thinkerName"),
@@ -92,6 +106,7 @@ async function init() {
   bindThinkerControls();
   bindWeightControls();
   bindTimerControls();
+  bindNotificationControls();
   startClock();
 
   try {
@@ -182,6 +197,81 @@ function bindTimerControls() {
   elements.timerStart.addEventListener("click", toggleTimer);
   elements.timerReset.addEventListener("click", resetTimer);
   renderTimer();
+}
+
+function bindNotificationControls() {
+  if (!elements.enableNotificationsButton) {
+    return;
+  }
+
+  refreshNotificationStatus();
+  elements.enableNotificationsButton.addEventListener("click", enablePushNotifications);
+}
+
+function refreshNotificationStatus() {
+  if (!("Notification" in window)) {
+    elements.notificationStatus.textContent = "非対応";
+    elements.enableNotificationsButton.disabled = true;
+    return;
+  }
+
+  const labels = {
+    default: "未許可",
+    granted: "許可済み",
+    denied: "拒否中",
+  };
+  elements.notificationStatus.textContent = labels[Notification.permission] || Notification.permission;
+  elements.enableNotificationsButton.textContent = Notification.permission === "granted" ? "Tokenを再取得" : "通知を有効化";
+}
+
+async function enablePushNotifications() {
+  try {
+    if (!("Notification" in window) || !("serviceWorker" in navigator)) {
+      throw new Error("このブラウザはWeb Push通知に対応していません。");
+    }
+
+    elements.notificationStatus.textContent = "確認中";
+    const permission = await Notification.requestPermission();
+    refreshNotificationStatus();
+
+    if (permission !== "granted") {
+      elements.fcmTokenText.textContent = "通知が許可されていません。ブラウザ設定を確認してください。";
+      return;
+    }
+
+    const registration = await navigator.serviceWorker.register("./firebase-messaging-sw.js");
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js");
+    const { getMessaging, getToken, onMessage } = await import("https://www.gstatic.com/firebasejs/10.12.4/firebase-messaging.js");
+    const app = initializeApp(firebaseConfig);
+    const messaging = getMessaging(app);
+    const token = await getToken(messaging, {
+      vapidKey: FIREBASE_VAPID_KEY,
+      serviceWorkerRegistration: registration,
+    });
+
+    if (!token) {
+      throw new Error("FCM tokenを取得できませんでした。");
+    }
+
+    localStorage.setItem("motivaforge.fcmToken", token);
+    elements.notificationStatus.textContent = "準備完了";
+    elements.fcmTokenText.textContent = token;
+
+    onMessage(messaging, (payload) => {
+      showInAppNotification(payload.notification?.title || "MotivaForge", payload.notification?.body || "通知を受信しました。");
+    });
+  } catch (error) {
+    elements.notificationStatus.textContent = "設定エラー";
+    elements.fcmTokenText.textContent = error.message;
+  }
+}
+
+function showInAppNotification(title, body) {
+  const toast = document.createElement("div");
+  toast.className = "notification-toast";
+  toast.innerHTML = `<strong>${escapeHtml(title)}</strong><span>${escapeHtml(body)}</span>`;
+  document.body.append(toast);
+  window.setTimeout(() => toast.remove(), 6000);
 }
 
 function startClock() {

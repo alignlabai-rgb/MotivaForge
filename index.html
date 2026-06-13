@@ -83,6 +83,13 @@
               </div>
               <blockquote id="dailyLine">思想家カードを読み込み中です。</blockquote>
               <button class="primary-button" type="button" id="drawDailyButton">カードを更新</button>
+              <div class="notify-box">
+                <div>
+                  <span class="metric-label">Push Reminder</span>
+                  <strong id="notificationStatus">未設定</strong>
+                </div>
+                <button class="ghost-button" type="button" id="enableNotificationsButton">通知を有効化</button>
+              </div>
             </article>
           </div>
 
@@ -175,6 +182,10 @@
                 <span class="metric-label">Daily Deficit</span>
                 <strong id="observeDailyDeficit">-- kcal</strong>
               </div>
+            </div>
+            <div class="notify-token-box">
+              <span class="metric-label">FCM Token</span>
+              <code id="fcmTokenText">通知を有効化すると表示されます</code>
             </div>
             <div class="observation-table" id="observationTable"></div>
             <div class="timer-display" id="timerDisplay" aria-live="polite">25:00</div>
