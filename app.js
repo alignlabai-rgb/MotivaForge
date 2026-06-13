@@ -6,11 +6,14 @@ const state = {
   timerSeconds: 25 * 60,
   timerPreset: 25 * 60,
   timerId: null,
+  weightLogs: [],
+  firestore: null,
 };
 
 const DEFAULT_CURRENT_WEIGHT = 103.4;
 const DEFAULT_PLAN_START_DATE = "2026-06-13";
 const KCAL_PER_KG = 7700;
+const WEIGHT_USER_ID = "dzbk";
 const FIREBASE_VAPID_KEY = "BIz0AsnSDc92QsHmpWQ4pYQUq-Rl5onSFmR83SJGNgVfDUTXlKkUFwEnnzMMBXIl-6sTppx0_BtAnCS6y1zBfAg";
 
 const firebaseConfig = {
@@ -120,6 +123,7 @@ async function init() {
     state.thinkers = thinkers;
     state.races = races;
 
+    await initFirestore();
     renderRaceDashboard();
     drawThinker();
     renderDailyLine();
@@ -135,6 +139,88 @@ async function fetchJson(path) {
     throw new Error(`${path} の読み込みに失敗しました`);
   }
   return response.json();
+}
+
+async function getFirebaseApp() {
+  if (state.firebaseApp) {
+    return state.firebaseApp;
+  }
+
+  const { initializeApp, getApps, getApp } = await import("https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js");
+  state.firebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  return state.firebaseApp;
+}
+
+async function initFirestore() {
+  try {
+    const app = await getFirebaseApp();
+    const firestoreModule = await import("https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js");
+    const { getFirestore, collection, query, orderBy, limit, onSnapshot } = firestoreModule;
+    state.firestoreModule = firestoreModule;
+    state.firestore = getFirestore(app);
+
+    const logsQuery = query(
+      collection(state.firestore, "weightLogs", WEIGHT_USER_ID, "entries"),
+      orderBy("createdAt", "desc"),
+      limit(30),
+    );
+
+    onSnapshot(logsQuery, (snapshot) => {
+      state.weightLogs = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      renderWeightLog();
+      renderRaceDashboard();
+    }, (error) => {
+      console.warn("Firestore sync failed", error);
+      state.weightLogs = getLocalWeightLogs();
+      renderWeightLog();
+      renderRaceDashboard();
+    });
+  } catch (error) {
+    console.warn("Firestore init failed", error);
+    state.weightLogs = getLocalWeightLogs();
+  }
+}
+
+async function saveWeightLog(weight) {
+  const now = new Date();
+  const entry = {
+    date: toDateKey(now),
+    time: toTimeKey(now),
+    weight,
+    source: "web",
+  };
+
+  elements.weightInput.disabled = true;
+  try {
+    if (!state.firestore || !state.firestoreModule) {
+      await initFirestore();
+    }
+
+    if (state.firestore && state.firestoreModule) {
+      const { addDoc, collection, serverTimestamp } = state.firestoreModule;
+      await addDoc(collection(state.firestore, "weightLogs", WEIGHT_USER_ID, "entries"), {
+        ...entry,
+        createdAt: serverTimestamp(),
+      });
+    } else {
+      saveLocalWeightLog(entry);
+      state.weightLogs = getLocalWeightLogs();
+      renderWeightLog();
+      renderRaceDashboard();
+    }
+    elements.weightInput.value = "";
+  } catch (error) {
+    saveLocalWeightLog(entry);
+    state.weightLogs = getLocalWeightLogs();
+    renderWeightLog();
+    renderRaceDashboard();
+    console.warn("Saved weight locally after Firestore write failed", error);
+  } finally {
+    elements.weightInput.disabled = false;
+  }
 }
 
 function bindNavigation() {
@@ -164,7 +250,7 @@ function bindThinkerControls() {
 }
 
 function bindWeightControls() {
-  elements.weightForm.addEventListener("submit", (event) => {
+  elements.weightForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const value = Number(elements.weightInput.value);
     if (!Number.isFinite(value) || value <= 0) {
@@ -172,17 +258,7 @@ function bindWeightControls() {
       return;
     }
 
-    const logs = getWeightLogs();
-    const today = toDateKey(new Date());
-    const nextLogs = [
-      { date: today, weight: Math.round(value * 10) / 10 },
-      ...logs.filter((entry) => entry.date !== today),
-    ].slice(0, 30);
-
-    localStorage.setItem("motivaforge.weightLogs", JSON.stringify(nextLogs));
-    elements.weightInput.value = "";
-    renderWeightLog();
-    renderRaceDashboard();
+    await saveWeightLog(Math.round(value * 10) / 10);
   });
 }
 
@@ -266,9 +342,8 @@ async function enablePushNotifications() {
     }
 
     const registration = await navigator.serviceWorker.register("./firebase-messaging-sw.js");
-    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js");
     const { getMessaging, getToken, onMessage } = await import("https://www.gstatic.com/firebasejs/10.12.4/firebase-messaging.js");
-    const app = initializeApp(firebaseConfig);
+    const app = await getFirebaseApp();
     const messaging = getMessaging(app);
     const token = await getToken(messaging, {
       vapidKey: FIREBASE_VAPID_KEY,
@@ -509,18 +584,33 @@ function renderWeightLog() {
 
   logs.slice(0, 8).forEach((entry) => {
     const item = document.createElement("li");
-    item.innerHTML = `<span>${escapeHtml(entry.date)}</span><strong>${entry.weight.toFixed(1)} kg</strong>`;
+    item.innerHTML = `<span>${escapeHtml(entry.date)} ${escapeHtml(entry.time || "")}</span><strong>${Number(entry.weight).toFixed(1)} kg</strong>`;
     elements.weightLog.append(item);
   });
 }
 
 function getWeightLogs() {
+  return state.weightLogs.length ? state.weightLogs : getLocalWeightLogs();
+}
+
+function getLocalWeightLogs() {
   try {
     const logs = JSON.parse(localStorage.getItem("motivaforge.weightLogs") || "[]");
     return Array.isArray(logs) ? logs : [];
   } catch {
     return [];
   }
+}
+
+function saveLocalWeightLog(entry) {
+  const logs = getLocalWeightLogs();
+  localStorage.setItem("motivaforge.weightLogs", JSON.stringify([
+    {
+      ...entry,
+      createdAt: new Date().toISOString(),
+    },
+    ...logs,
+  ].slice(0, 30)));
 }
 
 function getCurrentWeight() {
@@ -626,6 +716,12 @@ function toDateKey(date) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function toTimeKey(date) {
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
 }
 
 function startOfDay(date) {

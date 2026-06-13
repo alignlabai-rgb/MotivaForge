@@ -5,6 +5,7 @@ const KCAL_PER_KG = 7700;
 const DEFAULT_CURRENT_WEIGHT = 103.4;
 const DEFAULT_PLAN_START_DATE = "2026-06-13";
 const SITE_URL = "https://alignlabai-rgb.github.io/MotivaForge/";
+const WEIGHT_USER_ID = "dzbk";
 
 const TARGET_WEIGHTS_BY_RACE_ID = {
   race_2026_11: 98,
@@ -43,16 +44,20 @@ const raceDate = startOfDayInTokyo(new Date(`${nextRace.date_start}T00:00:00+09:
 const days = Math.max(0, Math.ceil((raceDate - today) / 86400000));
 const targetWeight = TARGET_WEIGHTS_BY_RACE_ID[nextRace.id];
 const todayTarget = getTodayTargetWeight(targetWeight, raceDate, today);
-const dailyLoss = days > 0 ? Math.max(0, DEFAULT_CURRENT_WEIGHT - targetWeight) / days : 0;
-const dailyDeficit = Math.round(dailyLoss * KCAL_PER_KG);
 const thinker = thinkers[Math.floor(seedFromDate(today) % thinkers.length)];
 
 const accessToken = await getAccessToken(serviceAccount);
+const latestWeightLog = await getLatestWeightLog(accessToken, serviceAccount.project_id);
+const currentWeight = latestWeightLog?.weight || DEFAULT_CURRENT_WEIGHT;
+const remainingLoss = Math.max(0, currentWeight - targetWeight);
+const updatedDailyLoss = days > 0 ? remainingLoss / days : remainingLoss;
+const updatedDailyDeficit = Math.round(updatedDailyLoss * KCAL_PER_KG);
 const title = "MotivaForge";
 const body = [
   `今日の目標: ${formatWeight(todayTarget)}`,
+  `最新体重: ${formatWeight(currentWeight)}${latestWeightLog ? ` (${latestWeightLog.date} ${latestWeightLog.time})` : ""}`,
   `${nextRace.name}まであと${days}日 / 目標${formatWeight(targetWeight)}`,
-  `必要赤字: 約${dailyDeficit.toLocaleString("ja-JP")}kcal/day`,
+  `必要赤字: 約${updatedDailyDeficit.toLocaleString("ja-JP")}kcal/day`,
   `今日の鍛錬: P-${String(thinker.num).padStart(3, "0")} ${thinker.name}`,
 ].join("\n");
 
@@ -146,6 +151,34 @@ async function sendMessage(accessToken, projectId, token, title, body) {
   if (!response.ok) {
     throw new Error(`FCM send failed: ${response.status} ${await response.text()}`);
   }
+}
+
+async function getLatestWeightLog(accessToken, projectId) {
+  const parent = `projects/${projectId}/databases/(default)/documents`;
+  const url = new URL(`https://firestore.googleapis.com/v1/${parent}/weightLogs/${WEIGHT_USER_ID}/entries`);
+  url.searchParams.set("pageSize", "1");
+  url.searchParams.set("orderBy", "createdAt desc");
+
+  const response = await fetch(url, {
+    headers: { authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!response.ok) {
+    console.warn(`Firestore latest weight request failed: ${response.status} ${await response.text()}`);
+    return null;
+  }
+
+  const data = await response.json();
+  const document = data.documents?.[0];
+  return document ? fromFirestoreFields(document.fields || {}) : null;
+}
+
+function fromFirestoreFields(fields) {
+  return {
+    date: fields.date?.stringValue || "",
+    time: fields.time?.stringValue || "",
+    weight: Number(fields.weight?.doubleValue ?? fields.weight?.integerValue ?? DEFAULT_CURRENT_WEIGHT),
+  };
 }
 
 function base64url(value) {
