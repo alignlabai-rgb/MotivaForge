@@ -68,6 +68,8 @@ const elements = {
   observationTable: document.querySelector("#observationTable"),
   notificationStatus: document.querySelector("#notificationStatus"),
   enableNotificationsButton: document.querySelector("#enableNotificationsButton"),
+  notificationStatusSecondary: document.querySelector("#notificationStatusSecondary"),
+  enableNotificationsButtonSecondary: document.querySelector("#enableNotificationsButtonSecondary"),
   fcmTokenText: document.querySelector("#fcmTokenText"),
   thinkerCount: document.querySelector("#thinkerCount"),
   thinkerNumber: document.querySelector("#thinkerNumber"),
@@ -200,18 +202,38 @@ function bindTimerControls() {
 }
 
 function bindNotificationControls() {
-  if (!elements.enableNotificationsButton) {
+  const buttons = [
+    elements.enableNotificationsButton,
+    elements.enableNotificationsButtonSecondary,
+  ].filter(Boolean);
+
+  if (!buttons.length) {
     return;
   }
 
   refreshNotificationStatus();
-  elements.enableNotificationsButton.addEventListener("click", enablePushNotifications);
+  buttons.forEach((button) => {
+    button.addEventListener("click", enablePushNotifications);
+  });
 }
 
 function refreshNotificationStatus() {
+  const statuses = [
+    elements.notificationStatus,
+    elements.notificationStatusSecondary,
+  ].filter(Boolean);
+  const buttons = [
+    elements.enableNotificationsButton,
+    elements.enableNotificationsButtonSecondary,
+  ].filter(Boolean);
+
   if (!("Notification" in window)) {
-    elements.notificationStatus.textContent = "非対応";
-    elements.enableNotificationsButton.disabled = true;
+    statuses.forEach((status) => {
+      status.textContent = "非対応";
+    });
+    buttons.forEach((button) => {
+      button.disabled = true;
+    });
     return;
   }
 
@@ -220,8 +242,12 @@ function refreshNotificationStatus() {
     granted: "許可済み",
     denied: "拒否中",
   };
-  elements.notificationStatus.textContent = labels[Notification.permission] || Notification.permission;
-  elements.enableNotificationsButton.textContent = Notification.permission === "granted" ? "Tokenを再取得" : "通知を有効化";
+  statuses.forEach((status) => {
+    status.textContent = labels[Notification.permission] || Notification.permission;
+  });
+  buttons.forEach((button) => {
+    button.textContent = Notification.permission === "granted" ? "Tokenを再取得" : "通知を有効化";
+  });
 }
 
 async function enablePushNotifications() {
@@ -230,7 +256,7 @@ async function enablePushNotifications() {
       throw new Error("このブラウザはWeb Push通知に対応していません。");
     }
 
-    elements.notificationStatus.textContent = "確認中";
+    setNotificationStatus("確認中");
     const permission = await Notification.requestPermission();
     refreshNotificationStatus();
 
@@ -254,16 +280,25 @@ async function enablePushNotifications() {
     }
 
     localStorage.setItem("motivaforge.fcmToken", token);
-    elements.notificationStatus.textContent = "準備完了";
+    setNotificationStatus("準備完了");
     elements.fcmTokenText.textContent = token;
 
     onMessage(messaging, (payload) => {
       showInAppNotification(payload.notification?.title || "MotivaForge", payload.notification?.body || "通知を受信しました。");
     });
   } catch (error) {
-    elements.notificationStatus.textContent = "設定エラー";
+    setNotificationStatus("設定エラー");
     elements.fcmTokenText.textContent = error.message;
   }
+}
+
+function setNotificationStatus(text) {
+  [
+    elements.notificationStatus,
+    elements.notificationStatusSecondary,
+  ].filter(Boolean).forEach((status) => {
+    status.textContent = text;
+  });
 }
 
 function showInAppNotification(title, body) {
