@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0b0d10">
+    <title>MotivaForge</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Progressive Motivation Dashboard</p>
+          <h1>MotivaForge</h1>
+        </div>
+        <div class="clock" aria-live="polite">
+          <span id="todayLabel">--</span>
+          <strong id="timeLabel">--:--</strong>
+        </div>
+      </header>
+
+      <nav class="tabs" aria-label="メインビュー">
+        <button class="tab-button active" type="button" data-view="home">Home</button>
+        <button class="tab-button" type="button" data-view="thinker">Thinker</button>
+        <button class="tab-button" type="button" data-view="observe">Observe</button>
+      </nav>
+
+      <main>
+        <section class="view active" id="home" aria-labelledby="homeTitle">
+          <div class="hero-grid">
+            <article class="panel countdown-panel">
+              <div class="panel-heading">
+                <p class="eyebrow">Next Race</p>
+                <h2 id="homeTitle">大会カウントダウン</h2>
+              </div>
+              <div class="countdown-layout">
+                <div id="raceCountdown" class="countdown">
+                  <span class="count-value">--</span>
+                  <span class="count-unit">days</span>
+                </div>
+                <div class="today-target-card">
+                  <span class="metric-label">Today Target</span>
+                  <strong id="todayTargetWeight">-- kg</strong>
+                  <span id="todayTargetNote">--</span>
+                </div>
+              </div>
+              <div class="race-main">
+                <h3 id="nextRaceName">読み込み中</h3>
+                <p id="nextRaceMeta">data/races.json を確認しています。</p>
+              </div>
+              <div class="metric-row">
+                <div>
+                  <span class="metric-label">Distance</span>
+                  <strong id="nextRaceDistance">--</strong>
+                </div>
+                <div>
+                  <span class="metric-label">Limit</span>
+                  <strong id="nextRaceLimit">--</strong>
+                </div>
+                <div>
+                  <span class="metric-label">Status</span>
+                  <strong id="nextRaceStatus">--</strong>
+                </div>
+                <div>
+                  <span class="metric-label">Target</span>
+                  <strong id="nextRaceTarget">--</strong>
+                </div>
+                <div>
+                  <span class="metric-label">Pace</span>
+                  <strong id="nextRacePace">--</strong>
+                </div>
+              </div>
+            </article>
+
+            <article class="panel focus-panel">
+              <div class="panel-heading">
+                <p class="eyebrow">Daily Card</p>
+                <h2>今日の鍛錬</h2>
+              </div>
+              <blockquote id="dailyLine">思想家カードを読み込み中です。</blockquote>
+              <button class="primary-button" type="button" id="drawDailyButton">カードを更新</button>
+            </article>
+          </div>
+
+          <div class="dashboard-grid">
+            <article class="panel">
+              <div class="panel-heading inline">
+                <div>
+                  <p class="eyebrow">Body Log</p>
+                  <h2>体重トラッキング</h2>
+                </div>
+                <strong id="weightDelta" class="delta">--</strong>
+              </div>
+              <form class="weight-form" id="weightForm">
+                <label>
+                  <span>今日の体重 kg</span>
+                  <input id="weightInput" type="number" min="30" max="200" step="0.1" inputmode="decimal" placeholder="103.4">
+                </label>
+                <button class="primary-button compact" type="submit">記録</button>
+              </form>
+              <div class="weight-summary">
+                <div>
+                  <span class="metric-label">Latest</span>
+                  <strong id="latestWeight">-- kg</strong>
+                </div>
+                <div>
+                  <span class="metric-label">Entries</span>
+                  <strong id="weightCount">0</strong>
+                </div>
+              </div>
+              <ul class="log-list" id="weightLog"></ul>
+            </article>
+
+            <article class="panel">
+              <div class="panel-heading inline">
+                <div>
+                  <p class="eyebrow">Race Pipeline</p>
+                  <h2>大会予定</h2>
+                </div>
+                <span id="raceCountBadge" class="pill">--</span>
+              </div>
+              <div class="race-list" id="raceList"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="thinker" aria-labelledby="thinkerTitle">
+          <article class="panel thinker-panel">
+            <div class="panel-heading inline">
+              <div>
+                <p class="eyebrow">Philosopher Flashcard</p>
+                <h2 id="thinkerTitle">思想家カード</h2>
+              </div>
+              <span id="thinkerCount" class="pill">--</span>
+            </div>
+            <div class="mode-switch" role="group" aria-label="カード種別">
+              <button class="mode-button active" type="button" data-mode="essence">本質</button>
+              <button class="mode-button" type="button" data-mode="question">問い</button>
+              <button class="mode-button" type="button" data-mode="debate">論点</button>
+            </div>
+            <div class="flashcard">
+              <p id="thinkerNumber" class="eyebrow">P----</p>
+              <h3 id="thinkerName">読み込み中</h3>
+              <p id="thinkerEnglish" class="latin">--</p>
+              <p id="thinkerText" class="card-text">data/thinkers.json を確認しています。</p>
+            </div>
+            <div class="action-row">
+              <button class="primary-button" type="button" id="randomThinkerButton">ランダム表示</button>
+              <button class="ghost-button" type="button" id="copyThinkerButton">コピー</button>
+            </div>
+          </article>
+        </section>
+
+        <section class="view" id="observe" aria-labelledby="observeTitle">
+          <article class="panel observe-panel">
+            <div class="panel-heading">
+              <p class="eyebrow">Weight Observatory</p>
+              <h2 id="observeTitle">減量観測表</h2>
+              <h2 id="timerTitle">集中タイマー</h2>
+            </div>
+            <div class="observe-summary">
+              <div>
+                <span class="metric-label">Current</span>
+                <strong id="observeCurrentWeight">-- kg</strong>
+              </div>
+              <div>
+                <span class="metric-label">Today Target</span>
+                <strong id="observeTodayTarget">-- kg</strong>
+              </div>
+              <div>
+                <span class="metric-label">Daily Deficit</span>
+                <strong id="observeDailyDeficit">-- kcal</strong>
+              </div>
+            </div>
+            <div class="observation-table" id="observationTable"></div>
+            <div class="timer-display" id="timerDisplay" aria-live="polite">25:00</div>
+            <div class="timer-controls">
+              <button class="ghost-button icon-button" type="button" data-minutes="15">15</button>
+              <button class="ghost-button icon-button active" type="button" data-minutes="25">25</button>
+              <button class="ghost-button icon-button" type="button" data-minutes="45">45</button>
+            </div>
+            <div class="action-row">
+              <button class="primary-button" type="button" id="timerStart">Start</button>
+              <button class="ghost-button" type="button" id="timerReset">Reset</button>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>
