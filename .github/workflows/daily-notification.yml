@@ -3,8 +3,9 @@ name: MotivaForge Reminder Notifications
 on:
   workflow_dispatch:
   schedule:
-    # Every 2 hours from 05:00 to 21:00 JST.
-    - cron: "0 20,22,0,2,4,6,8,10,12 * * *"
+    # Every 2 hours from 05:07 to 21:07 JST.
+    # Avoid minute 0 because GitHub scheduled workflows are busiest then.
+    - cron: "7 20,22,0,2,4,6,8,10,12 * * *"
 
 jobs:
   send:
