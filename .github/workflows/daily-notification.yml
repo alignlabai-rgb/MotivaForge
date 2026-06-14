@@ -5,7 +5,15 @@ on:
   schedule:
     # Every 2 hours from 05:07 to 21:07 JST.
     # Avoid minute 0 because GitHub scheduled workflows are busiest then.
-    - cron: "7 20,22,0,2,4,6,8,10,12 * * *"
+    - cron: "7 20 * * *" # 05:07 JST
+    - cron: "7 22 * * *" # 07:07 JST
+    - cron: "7 0 * * *"  # 09:07 JST
+    - cron: "7 2 * * *"  # 11:07 JST
+    - cron: "7 4 * * *"  # 13:07 JST
+    - cron: "7 6 * * *"  # 15:07 JST
+    - cron: "7 8 * * *"  # 17:07 JST
+    - cron: "7 10 * * *" # 19:07 JST
+    - cron: "7 12 * * *" # 21:07 JST
 
 jobs:
   send:
