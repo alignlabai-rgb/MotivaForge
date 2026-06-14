@@ -61,7 +61,12 @@ function sendMotivaForgeReminder() {
   ].join("\n");
 
   tokens.forEach((token) => {
-    sendFcm_(accessToken, serviceAccount.project_id, token, title, body);
+    try {
+      sendFcm_(accessToken, serviceAccount.project_id, token, title, body);
+      console.log("sent " + token.slice(0, 12) + "...");
+    } catch (error) {
+      console.warn("failed " + token.slice(0, 12) + "... " + error.message);
+    }
   });
 }
 
