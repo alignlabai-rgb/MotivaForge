@@ -33,7 +33,10 @@ const [races, thinkers] = await Promise.all([
 
 const today = startOfDayInTokyo(new Date());
 const nextRace = races
-  .filter((race) => race.status !== "completed")
+  .filter((race) => {
+    const endDate = race.date_end || race.date_start;
+    return startOfDayInTokyo(new Date(`${endDate}T00:00:00+09:00`)) >= today;
+  })
   .sort((a, b) => new Date(a.date_start) - new Date(b.date_start))[0];
 
 if (!nextRace) {

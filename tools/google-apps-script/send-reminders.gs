@@ -33,7 +33,10 @@ function sendMotivaForgeReminder() {
   const thinkers = fetchJson_(SITE_URL + "data/thinkers.json");
   const today = startOfDayJst_(new Date());
   const nextRace = races
-    .filter((race) => race.status !== "completed")
+    .filter((race) => {
+      const endDate = race.date_end || race.date_start;
+      return startOfDayJst_(new Date(endDate + "T00:00:00+09:00")) >= today;
+    })
     .sort((a, b) => new Date(a.date_start) - new Date(b.date_start))[0];
 
   if (!nextRace) {

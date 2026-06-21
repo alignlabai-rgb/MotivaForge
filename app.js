@@ -399,7 +399,7 @@ function renderRaceDashboard() {
   const today = startOfDay(new Date());
   const currentWeight = getCurrentWeight();
   const upcoming = state.races
-    .filter((race) => race.status !== "completed")
+    .filter((race) => startOfDay(new Date(race.date_end || race.date_start)) >= today)
     .sort((a, b) => new Date(a.date_start) - new Date(b.date_start));
   const nextRace = upcoming[0] || state.races[state.races.length - 1];
 
